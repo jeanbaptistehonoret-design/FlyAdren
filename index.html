@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fly Adrenaline — Pilote</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #f8f8f6;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.1);
+    --border-md: rgba(0,0,0,0.18);
+    --text: #1a1a18;
+    --text-muted: #6b6b67;
+    --text-hint: #9a9a96;
+    --blue: #378ADD;
+    --blue-bg: #E6F1FB;
+    --blue-text: #0C447C;
+    --green: #639922;
+    --green-bg: #EAF3DE;
+    --green-text: #27500A;
+    --red: #E24B4A;
+    --red-bg: #FCEBEB;
+    --red-text: #791F1F;
+    --amber: #BA7517;
+    --amber-bg: #FAEEDA;
+    --amber-text: #633806;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18;
+      --surface: #252523;
+      --border: rgba(255,255,255,0.1);
+      --border-md: rgba(255,255,255,0.18);
+      --text: #f0f0ec;
+      --text-muted: #a0a09c;
+      --text-hint: #6b6b67;
+      --blue-bg: #0C447C;
+      --blue-text: #B5D4F4;
+      --green-bg: #27500A;
+      --green-text: #C0DD97;
+      --red-bg: #791F1F;
+      --red-text: #F7C1C1;
+      --amber-bg: #633806;
+      --amber-text: #FAC775;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  #app { max-width: 720px; margin: 0 auto; padding: 1rem; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+  .header-title { font-size: 18px; font-weight: 500; }
+  .header-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .header-stat { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 6px 12px; text-align: right; }
+  .header-stat .v { font-size: 16px; font-weight: 500; }
+  .header-stat .l { font-size: 11px; color: var(--text-muted); }
+  nav { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 1.25rem; border-bottom: 0.5px solid var(--border); padding-bottom: 1rem; }
+  nav button { padding: 6px 13px; font-size: 13px; border: 0.5px solid var(--border-md); background: transparent; border-radius: var(--radius-md); cursor: pointer; color: var(--text-muted); transition: all .15s; }
+  nav button.active { background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue); }
+  nav button:hover:not(.active) { background: var(--surface); }
+  .section { display: none; }
+  .section.active { display: block; }
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .sect-title { font-size: 15px; font-weight: 500; margin-bottom: 12px; }
+  .label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+  .row { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 100px; }
+  input, select, textarea { width: 100%; padding: 7px 10px; font-size: 14px; border: 0.5px solid var(--border-md); border-radius: var(--radius-md); background: var(--bg); color: var(--text); font-family: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px rgba(55,138,221,0.15); }
+  textarea { resize: vertical; min-height: 56px; }
+  button { cursor: pointer; font-family: inherit; }
+  .btn { padding: 8px 16px; font-size: 13px; border: 0.5px solid var(--border-md); background: transparent; border-radius: var(--radius-md); color: var(--text); transition: all .15s; }
+  .btn:hover { background: var(--bg); }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue); }
+  .btn-primary:hover { opacity: .9; }
+  .btn-danger { background: var(--red-bg); color: var(--red-text); border-color: var(--red); }
+  .btn-full { width: 100%; margin-top: 6px; }
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .metric { background: var(--bg); border-radius: var(--radius-md); padding: 10px 12px; }
+  .metric .val { font-size: 20px; font-weight: 500; }
+  .metric .lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+  .badge-ok { background: var(--green-bg); color: var(--green-text); }
+  .badge-warn { background: var(--amber-bg); color: var(--amber-text); }
+  .badge-info { background: var(--blue-bg); color: var(--blue-text); }
+  .badge-gray { background: var(--bg); color: var(--text-muted); border: 0.5px solid var(--border); }
+  .flight-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+  .flight-row:last-child { border-bottom: none; }
+  .time-badge { background: var(--bg); border-radius: var(--radius-md); padding: 3px 8px; font-size: 12px; font-weight: 500; min-width: 48px; text-align: center; }
+  .detail-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; color: var(--text-muted); }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-row span:last-child { font-weight: 500; color: var(--text); }
+  hr { border: none; border-top: 0.5px solid var(--border); margin: .75rem 0; }
+  .result-box { border-radius: var(--radius-md); padding: .85rem 1rem; margin-top: .75rem; }
+  .result-box .big { font-size: 26px; font-weight: 500; }
+  .result-box .sub { font-size: 12px; opacity: .85; }
+
+  /* CALENDAR */
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-nav button { padding: 4px 14px; font-size: 14px; border: 0.5px solid var(--border-md); background: transparent; border-radius: var(--radius-md); color: var(--text); }
+  .cal-grid-heads { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-bottom: 4px; }
+  .cal-head { font-size: 11px; color: var(--text-muted); text-align: center; padding: 3px 0; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+  .cal-day { border-radius: var(--radius-md); padding: 5px 3px; text-align: center; cursor: pointer; font-size: 12px; border: 0.5px solid transparent; min-height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; transition: opacity .1s; }
+  .cal-day .dn { font-weight: 500; font-size: 13px; }
+  .cal-day .tag { font-size: 9px; padding: 1px 5px; border-radius: 8px; font-weight: 500; max-width: 95%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-day:hover { opacity: .75; }
+  .cal-day.today { border: 1.5px solid var(--blue) !important; }
+  .cal-day.empty { opacity: 0; pointer-events: none; }
+  .cal-day.off { background: var(--green-bg); }
+  .cal-day.work { background: var(--blue-bg); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 1rem; }
+  .leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
+  .leg-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  /* COMPASS */
+  .compass-wrap { position: relative; width: 96px; height: 96px; border-radius: 50%; border: 1.5px solid var(--border-md); margin: 0 auto 8px; }
+  .compass-label { position: absolute; font-size: 9px; color: var(--text-muted); }
+
+  /* DAY EDITOR */
+  .day-editor { background: var(--surface); border: 1px solid var(--blue); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+
+  /* LOADING */
+  #loading { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 999; font-size: 14px; color: var(--text-muted); }
+
+  /* TOAST */
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 18px; border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 1000; }
+  #toast.show { opacity: 1; }
+
+  .history-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; gap: 8px; }
+  .history-row:last-child { border-bottom: none; }
+
+  /* LARGAGE TANDEM */
+  .tandem-block { background: var(--bg); border-radius: var(--radius-md); padding: .75rem; margin-top: .5rem; }
+  .tandem-title { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<div id="loading">Connexion à Supabase...</div>
+<div id="toast"></div>
+
+<div id="app" style="display:none;">
+
+  <div class="header">
+    <div>
+      <div class="header-title">Fly Adrenaline</div>
+      <div class="header-sub" id="today-label"></div>
+    </div>
+    <div class="header-stat">
+      <div class="v" id="header-rots">0</div>
+      <div class="l">rotations auj.</div>
+    </div>
+  </div>
+
+  <nav>
+    <button class="active" onclick="switchTab('planning')">Vols du jour</button>
+    <button onclick="switchTab('agenda')">Mon agenda</button>
+    <button onclick="switchTab('largage')">Largage</button>
+    <button onclick="switchTab('mission')">Fin de mission</button>
+    <button onclick="switchTab('historique')">Historique</button>
+  </nav>
+
+  <!-- ===== VOLS DU JOUR ===== -->
+  <div id="tab-planning" class="section active">
+    <div class="card">
+      <div class="sect-title">Vols du jour</div>
+      <div id="flights-list"><div style="color:var(--text-muted);font-size:13px;text-align:center;padding:1rem 0;">Chargement...</div></div>
+    </div>
+    <div class="card">
+      <div class="sect-title">Ajouter un vol</div>
+      <div class="row">
+        <div><div class="label">Heure décollage</div><input type="time" id="fl-time" value="09:00"></div>
+        <div><div class="label">Nb parachutistes</div><input type="number" id="fl-pax" min="1" max="20" value="2"></div>
+        <div><div class="label">Type de saut</div>
+          <select id="fl-type">
+            <option>Tandem</option><option>Solo</option><option>Formation</option><option>AFF</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div><div class="label">Altitude</div>
+          <select id="fl-alt">
+            <option value="10000">10 000 ft (FL100)</option>
+            <option value="13000" selected>13 000 ft (max)</option>
+          </select>
+        </div>
+        <div><div class="label">Statut</div>
+          <select id="fl-status">
+            <option>Planifié</option><option>Confirmé</option><option>Effectué</option><option>Annulé</option>
+          </select>
+        </div>
+        <div><div class="label">Notes</div><input type="text" id="fl-notes" placeholder="Météo, remarque..."></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="addFlight()">+ Ajouter le vol</button>
+    </div>
+    <div class="metric-grid">
+      <div class="metric"><div class="val" id="stat-vols">0</div><div class="lbl">vols planifiés</div></div>
+      <div class="metric"><div class="val" id="stat-pax">0</div><div class="lbl">parachutistes</div></div>
+      <div class="metric"><div class="val" id="stat-done">0</div><div class="lbl">effectués</div></div>
+    </div>
+  </div>
+
+  <!-- ===== AGENDA ===== -->
+  <div id="tab-agenda" class="section">
+    <div class="cal-nav">
+      <button onclick="changeMonth(-1)">←</button>
+      <span style="font-weight:500;font-size:14px;" id="cal-title"></span>
+      <button onclick="changeMonth(1)">→</button>
+    </div>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:var(--green-bg);border:1px solid var(--green);"></div>Jour off</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--blue-bg);border:1px solid var(--blue);"></div>Journée de vol</div>
+    </div>
+    <div class="card" style="padding:.75rem;">
+      <div class="cal-grid-heads" id="cal-heads"></div>
+      <div class="cal-grid" id="cal-days"></div>
+    </div>
+    <div id="day-editor" style="display:none;" class="day-editor">
+      <div class="sect-title" id="day-editor-title">Modifier la journée</div>
+      <div class="row">
+        <div><div class="label">Type de journée</div>
+          <select id="day-type" onchange="toggleDZ()">
+            <option value="">— Non défini —</option>
+            <option value="off">Jour off</option>
+            <option value="work">Journée de vol</option>
+          </select>
+        </div>
+      </div>
+      <div id="dz-field" style="display:none;" class="row">
+        <div><div class="label">DZ / lieu de largage</div><input type="text" id="day-dz" placeholder="ex: Merlimont, Drop Zone Nord..."></div>
+      </div>
+      <div class="row">
+        <div><div class="label">Notes</div><input type="text" id="day-notes" placeholder="Formation, ferry, météo..."></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="saveDay()" style="flex:1;">Enregistrer</button>
+        <button class="btn" onclick="document.getElementById('day-editor').style.display='none'">Annuler</button>
+      </div>
+    </div>
+    <div class="metric-grid" style="margin-top:1rem;">
+      <div class="metric"><div class="val" id="ag-off">0</div><div class="lbl">jours off ce mois</div></div>
+      <div class="metric"><div class="val" id="ag-work">0</div><div class="lbl">jours de vol</div></div>
+    </div>
+  </div>
+
+  <!-- ===== LARGAGE ===== -->
+  <div id="tab-largage" class="section">
+    <div class="card">
+      <div class="sect-title">Paramètres de largage</div>
+      <div class="row">
+        <div><div class="label">Altitude de largage</div>
+          <select id="dp-alt" onchange="calcDrop()">
+            <option value="10000">10 000 ft (FL100)</option>
+            <option value="13000" selected>13 000 ft (max)</option>
+          </select>
+        </div>
+        <div><div class="label">Type de saut</div>
+          <select id="dp-type" onchange="calcDrop()">
+            <option value="55">Tandem (55s FF)</option>
+            <option value="60">Solo (60s FF)</option>
+            <option value="50">AFF (50s FF)</option>
+            <option value="65">Formation (65s FF)</option>
+          </select>
+        </div>
+      </div>
+      <hr>
+      <div style="font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:8px;">Vent — détermine le cap avion automatiquement</div>
+      <div class="row">
+        <div><div class="label">Vitesse vent (kt)</div><input type="number" id="dp-wind-spd" value="10" min="0" max="60" oninput="calcDrop()"></div>
+        <div>
+          <div class="label">Vient du (°) <span style="color:var(--text-hint);font-weight:400;">ex: 270 = vent d'ouest</span></div>
+          <input type="number" id="dp-wind-dir" value="270" min="0" max="360" oninput="calcDrop()">
+        </div>
+        <div><div class="label">Alt. ouverture (ft)</div><input type="number" id="dp-open-alt" value="3000" min="2000" max="6000" oninput="calcDrop()"></div>
+      </div>
+      <div class="row">
+        <div><div class="label">Vitesse avion (kt)</div><input type="number" id="dp-tas" value="90" min="60" max="150" oninput="calcDrop()"></div>
+        <div>
+          <div class="label">Cap de run (calculé)</div>
+          <div style="font-size:22px;font-weight:500;padding:6px 0;" id="dp-cap-display">270°</div>
+        </div>
+        <div><div class="label">Intervalle tandems (s)</div><input type="number" id="dp-interval" value="5" min="2" max="30" oninput="calcDrop()"></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:104px 1fr;gap:1rem;align-items:start;">
+      <div class="card" style="padding:.75rem;">
+        <div class="label" style="text-align:center;margin-bottom:6px;">Cap / vent</div>
+        <div class="compass-wrap">
+          <span class="compass-label" style="top:3px;left:50%;transform:translateX(-50%);">N</span>
+          <span class="compass-label" style="bottom:3px;left:50%;transform:translateX(-50%);">S</span>
+          <span class="compass-label" style="top:50%;right:3px;transform:translateY(-50%);">E</span>
+          <span class="compass-label" style="top:50%;left:3px;transform:translateY(-50%);">O</span>
+          <div style="position:absolute;top:50%;left:50%;width:2px;height:36px;background:var(--red);transform-origin:bottom center;border-radius:2px;" id="wind-arrow"></div>
+          <div style="position:absolute;top:50%;left:50%;width:2px;height:36px;background:var(--blue);transform-origin:bottom center;border-radius:2px;" id="hdg-arrow"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);text-align:center;line-height:1.6;">
+          <span style="color:var(--red);">—</span> vent<br>
+          <span style="color:var(--blue);">—</span> cap avion
+        </div>
+      </div>
+      <div>
+        <!-- TANDEM 1 -->
+        <div class="tandem-block">
+          <div class="tandem-title">Tandem 1 (premier à sauter)</div>
+          <div class="result-box" style="background:var(--blue-bg);border:0.5px solid var(--blue);">
+            <div class="big" id="res-dist-1" style="color:var(--blue-text);">—</div>
+            <div class="sub" style="color:var(--blue-text);">NM avant la DZ</div>
+          </div>
+        </div>
+        <!-- TANDEM 2 -->
+        <div class="tandem-block" style="margin-top:.5rem;">
+          <div class="tandem-title">Tandem 2 (deuxième à sauter)</div>
+          <div class="result-box" style="background:var(--green-bg);border:0.5px solid var(--green);">
+            <div class="big" id="res-dist-2" style="color:var(--green-text);">—</div>
+            <div class="sub" style="color:var(--green-text);">NM avant la DZ</div>
+          </div>
+        </div>
+        <!-- DÉTAILS -->
+        <div class="card" style="margin-top:.5rem;margin-bottom:0;">
+          <div class="detail-row"><span>Cap de run</span><span id="res-cap">—</span></div>
+          <div class="detail-row"><span>Durée chute libre</span><span id="res-fftime">—</span></div>
+          <div class="detail-row"><span>Dérive FF</span><span id="res-drift">—</span></div>
+          <div class="detail-row"><span>Dérive sous voile</span><span id="res-canopy">—</span></div>
+          <div class="detail-row"><span>Distance avion entre T1 et T2</span><span id="res-interval-dist">—</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FIN DE MISSION ===== -->
+  <div id="tab-mission" class="section">
+    <div class="card">
+      <div class="sect-title">Rapport de fin de mission</div>
+      <div class="row">
+        <div><div class="label">Date</div><input type="date" id="rep-date"></div>
+        <div><div class="label">Immatriculation</div><input type="text" id="rep-reg" placeholder="F-XXXX"></div>
+      </div>
+      <hr>
+      <div class="row">
+        <div><div class="label">Rotations</div><input type="number" id="rep-rots" value="0" min="0" oninput="updateMC()"></div>
+        <div><div class="label">Parachutistes total</div><input type="number" id="rep-pax" value="0" min="0" oninput="updateMC()"></div>
+      </div>
+      <div class="row">
+        <div><div class="label">1er décollage</div><input type="time" id="rep-start" value="09:00"></div>
+        <div><div class="label">Dernier atterro</div><input type="time" id="rep-end" value="17:00"></div>
+        <div><div class="label">Temps de vol (h:mm)</div><input type="text" id="rep-flytime" placeholder="3:30"></div>
+      </div>
+      <hr>
+      <div class="row">
+        <div><div class="label">Carburant départ (L)</div><input type="number" id="rep-fs" value="0" min="0" oninput="updateMC()"></div>
+        <div><div class="label">Avitaillement (L)</div><input type="number" id="rep-fr" value="0" min="0" oninput="updateMC()"></div>
+        <div><div class="label">Carburant arrivée (L)</div><input type="number" id="rep-fe" value="0" min="0" oninput="updateMC()"></div>
+      </div>
+      <div class="metric-grid">
+        <div class="metric"><div class="val" id="mc-conso">0</div><div class="lbl">L consommés</div></div>
+        <div class="metric"><div class="val" id="mc-l-rot">0</div><div class="lbl">L / rotation</div></div>
+        <div class="metric"><div class="val" id="mc-pax-rot">0</div><div class="lbl">pax / rotation</div></div>
+      </div>
+      <hr>
+      <div class="row">
+        <div><div class="label">Météo</div>
+          <select id="rep-meteo">
+            <option>CAVOK</option>
+            <option>Belles conditions</option>
+            <option>Voile nuageux — sauts OK</option>
+            <option>Vent fort — activité réduite</option>
+            <option>Annulation météo</option>
+          </select>
+        </div>
+        <div><div class="label">Incidents / remarques</div><textarea id="rep-notes" placeholder="RAS"></textarea></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="saveReport()">Enregistrer le rapport</button>
+    </div>
+  </div>
+
+  <!-- ===== HISTORIQUE ===== -->
+  <div id="tab-historique" class="section">
+    <div class="metric-grid">
+      <div class="metric"><div class="val" id="hist-days">0</div><div class="lbl">journées</div></div>
+      <div class="metric"><div class="val" id="hist-rots">0</div><div class="lbl">rotations</div></div>
+      <div class="metric"><div class="val" id="hist-pax">0</div><div class="lbl">pax totaux</div></div>
+      <div class="metric"><div class="val" id="hist-fuel">0 L</div><div class="lbl">carburant</div></div>
+    </div>
+    <div class="card">
+      <div class="sect-title">Rapports</div>
+      <div id="history-list"><div style="color:var(--text-muted);font-size:13px;text-align:center;padding:1rem;">Aucun rapport.</div></div>
+    </div>
+    <button class="btn btn-danger" style="width:100%;font-size:12px;" onclick="clearHistory()">Effacer tout l'historique</button>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+//  CONFIG — remplacer par vos vraies valeurs Supabase
+// ============================================================
+const SUPABASE_URL = 'https://VOTRE_PROJECT_ID.supabase.co';
+const SUPABASE_ANON_KEY = 'VOTRE_ANON_KEY';
+// ============================================================
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const $ = id => document.getElementById(id);
+const today = new Date();
+const todayStr = today.toISOString().split('T')[0];
+
+$('today-label').textContent = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+$('rep-date').value = todayStr;
+
+let calYear = today.getFullYear();
+let calMonth = today.getMonth();
+let editingDay = null;
+let agendaCache = {};
+
+// ---- TOAST ----
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ---- TABS ----
+function switchTab(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  $('tab-' + name).classList.add('active');
+  const map = { planning: 0, agenda: 1, largage: 2, mission: 3, historique: 4 };
+  document.querySelectorAll('nav button')[map[name]].classList.add('active');
+  if (name === 'agenda') { loadAgenda(); renderCal(); }
+  if (name === 'historique') loadHistory();
+}
+
+// ============================================================
+//  VOLS DU JOUR
+// ============================================================
+async function loadFlights() {
+  const { data, error } = await db.from('flights').select('*').eq('date', todayStr).order('time');
+  if (error) { toast('Erreur chargement vols'); return; }
+  renderFlights(data || []);
+}
+
+function renderFlights(list) {
+  const el = $('flights-list');
+  if (!list.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:1rem 0;">Aucun vol planifié.</div>';
+  } else {
+    el.innerHTML = list.map(f => {
+      const bc = f.status === 'Effectué' ? 'badge-ok' : f.status === 'Annulé' ? 'badge-warn' : 'badge-info';
+      return `<div class="flight-row">
+        <div class="time-badge">${f.time}</div>
+        <div style="flex:1;">${f.type} · ${f.alt}ft · ${f.pax}pax</div>
+        ${f.notes ? `<div style="font-size:11px;color:var(--text-muted);flex-shrink:0;">${f.notes}</div>` : ''}
+        <span class="badge ${bc}">${f.status}</span>
+        <button class="btn" style="padding:2px 8px;font-size:11px;" onclick="deleteFlight('${f.id}')">✕</button>
+      </div>`;
+    }).join('');
+  }
+  const done = list.filter(f => f.status === 'Effectué').length;
+  $('stat-vols').textContent = list.length;
+  $('stat-pax').textContent = list.reduce((a, f) => a + (f.pax || 0), 0);
+  $('stat-done').textContent = done;
+  $('header-rots').textContent = done;
+}
+
+async function addFlight() {
+  const payload = {
+    date: todayStr,
+    time: $('fl-time').value,
+    pax: parseInt($('fl-pax').value) || 1,
+    type: $('fl-type').value,
+    alt: parseInt($('fl-alt').value),
+    status: $('fl-status').value,
+    notes: $('fl-notes').value || null
+  };
+  const { error } = await db.from('flights').insert(payload);
+  if (error) { toast('Erreur ajout vol'); return; }
+  $('fl-notes').value = '';
+  toast('Vol ajouté');
+  loadFlights();
+}
+
+async function deleteFlight(id) {
+  await db.from('flights').delete().eq('id', id);
+  loadFlights();
+}
+
+// ============================================================
+//  AGENDA
+// ============================================================
+async function loadAgenda() {
+  const first = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-01`;
+  const last = new Date(calYear, calMonth + 1, 0).toISOString().split('T')[0];
+  const { data } = await db.from('agenda').select('*').gte('date', first).lte('date', last);
+  agendaCache = {};
+  (data || []).forEach(e => { agendaCache[e.date] = e; });
+  renderCal();
+}
+
+function renderCal() {
+  const heads = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  $('cal-heads').innerHTML = heads.map(h => `<div class="cal-head">${h}</div>`).join('');
+  const title = new Date(calYear, calMonth, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  $('cal-title').textContent = title.charAt(0).toUpperCase() + title.slice(1);
+  const lastDay = new Date(calYear, calMonth + 1, 0).getDate();
+  const startDow = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
+  let html = '';
+  for (let i = 0; i < startDow; i++) html += `<div class="cal-day empty"></div>`;
+  let offC = 0, workC = 0;
+  for (let d = 1; d <= lastDay; d++) {
+    const ds = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const entry = agendaCache[ds];
+    const isToday = ds === todayStr;
+    let cls = 'cal-day';
+    let tag = '';
+    if (entry) {
+      if (entry.type === 'off') {
+        cls += ' off'; offC++;
+        tag = `<span class="tag" style="background:var(--green);color:var(--green-bg);">off</span>`;
+      } else if (entry.type === 'work') {
+        cls += ' work'; workC++;
+        const dz = entry.dz ? entry.dz.substring(0, 7) : 'vol';
+        tag = `<span class="tag" style="background:var(--blue);color:var(--blue-bg);">${dz}</span>`;
+      }
+    }
+    if (isToday) cls += ' today';
+    html += `<div class="${cls}" onclick="openDayEditor('${ds}',${d})"><div class="dn">${d}</div>${tag}</div>`;
+  }
+  $('cal-days').innerHTML = html;
+  $('ag-off').textContent = offC;
+  $('ag-work').textContent = workC;
+}
+
+function changeMonth(dir) {
+  calMonth += dir;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  loadAgenda();
+}
+
+function toggleDZ() {
+  $('dz-field').style.display = $('day-type').value === 'work' ? 'flex' : 'none';
+}
+
+function openDayEditor(ds, d) {
+  editingDay = ds;
+  const entry = agendaCache[ds] || {};
+  $('day-editor-title').textContent = 'Journée du ' + new Date(ds + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('day-type').value = entry.type || '';
+  $('day-dz').value = entry.dz || '';
+  $('day-notes').value = entry.notes || '';
+  toggleDZ();
+  $('day-editor').style.display = 'block';
+}
+
+async function saveDay() {
+  const t = $('day-type').value;
+  if (!t) {
+    if (agendaCache[editingDay]) {
+      await db.from('agenda').delete().eq('date', editingDay);
+    }
+  } else {
+    const payload = { date: editingDay, type: t, dz: $('day-dz').value || null, notes: $('day-notes').value || null };
+    await db.from('agenda').upsert(payload, { onConflict: 'date' });
+  }
+  $('day-editor').style.display = 'none';
+  toast('Journée enregistrée');
+  loadAgenda();
+}
+
+// ============================================================
+//  CALCUL LARGAGE
+// ============================================================
+function calcDrop() {
+  const alt = parseInt($('dp-alt').value) || 13000;
+  const openAlt = parseInt($('dp-open-alt').value) || 3000;
+  const windSpd = parseFloat($('dp-wind-spd').value) || 0;
+  const windDir = parseFloat($('dp-wind-dir').value) || 0;
+  const tas = parseFloat($('dp-tas').value) || 90;
+  const ffTime = parseInt($('dp-type').value) || 55;
+  const interval = parseInt($('dp-interval').value) || 5;
+
+  // Cap avion = face au vent
+  const capAvion = (windDir + 180) % 360;
+  $('dp-cap-display').textContent = Math.round(capAvion) + '°';
+  $('res-cap').textContent = Math.round(capAvion) + '° (face au vent)';
+
+  // Dérive FF : vent * temps FF en nm
+  const driftFF_nm = windSpd * (ffTime / 3600);
+  const driftFF_m = Math.round(driftFF_nm * 1852);
+
+  // Dérive voile : descente à 500ft/min, de openAlt à 0
+  const canopyTime_s = (openAlt / 500) * 60;
+  const driftCanopy_nm = windSpd * (canopyTime_s / 3600);
+  const driftCanopy_m = Math.round(driftCanopy_nm * 1852);
+
+  // Point de largage = dérive totale en amont de la DZ
+  const totalDrift_nm = driftFF_nm + driftCanopy_nm;
+
+  // Distance parcourue par l'avion pendant l'intervalle entre 2 largages
+  const intervalDist_nm = (tas / 3600) * interval;
+
+  // Tandem 1 sort en premier (plus loin de la DZ)
+  const t1_nm = totalDrift_nm;
+  // Tandem 2 sort après : avion a avancé, donc dérive identique mais point de départ différent
+  // T2 est plus proche de la DZ de la distance parcourue par l'avion pendant l'intervalle
+  const t2_nm = totalDrift_nm - intervalDist_nm;
+
+  $('res-dist-1').textContent = t1_nm.toFixed(2) + ' NM';
+  $('res-dist-2').textContent = t2_nm.toFixed(2) + ' NM';
+  $('res-fftime').textContent = ffTime + 's';
+  $('res-drift').textContent = driftFF_m + ' m (' + driftFF_nm.toFixed(2) + ' NM)';
+  $('res-canopy').textContent = driftCanopy_m + ' m (' + driftCanopy_nm.toFixed(2) + ' NM)';
+  $('res-interval-dist').textContent = (intervalDist_nm * 1852).toFixed(0) + ' m (' + intervalDist_nm.toFixed(3) + ' NM)';
+
+  $('wind-arrow').style.transform = `translateX(-50%) rotate(${windDir}deg)`;
+  $('hdg-arrow').style.transform = `translateX(-50%) rotate(${capAvion}deg)`;
+}
+
+// ============================================================
+//  FIN DE MISSION
+// ============================================================
+function updateMC() {
+  const rots = parseInt($('rep-rots').value) || 0;
+  const fs = parseFloat($('rep-fs').value) || 0;
+  const fr = parseFloat($('rep-fr').value) || 0;
+  const fe = parseFloat($('rep-fe').value) || 0;
+  const pax = parseInt($('rep-pax').value) || 0;
+  const conso = Math.max(0, fs + fr - fe);
+  $('mc-conso').textContent = conso.toFixed(0);
+  $('mc-l-rot').textContent = rots > 0 ? (conso / rots).toFixed(1) : '0';
+  $('mc-pax-rot').textContent = rots > 0 ? (pax / rots).toFixed(1) : '0';
+}
+
+async function saveReport() {
+  const fs = parseFloat($('rep-fs').value) || 0;
+  const fr = parseFloat($('rep-fr').value) || 0;
+  const fe = parseFloat($('rep-fe').value) || 0;
+  const payload = {
+    date: $('rep-date').value,
+    reg: $('rep-reg').value || null,
+    rotations: parseInt($('rep-rots').value) || 0,
+    pax_total: parseInt($('rep-pax').value) || 0,
+    time_start: $('rep-start').value,
+    time_end: $('rep-end').value,
+    flight_time: $('rep-flytime').value || null,
+    fuel_start: fs,
+    fuel_end: fe,
+    fuel_refuel: fr,
+    meteo: $('rep-meteo').value,
+    notes: $('rep-notes').value || null
+  };
+  const { error } = await db.from('reports').insert(payload);
+  if (error) { toast('Erreur enregistrement'); return; }
+  toast('Rapport enregistré !');
+  switchTab('historique');
+}
+
+// ============================================================
+//  HISTORIQUE
+// ============================================================
+async function loadHistory() {
+  const { data } = await db.from('reports').select('*').order('date', { ascending: false });
+  const list = data || [];
+  const el = $('history-list');
+  if (!list.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:1rem;">Aucun rapport.</div>';
+  } else {
+    el.innerHTML = list.map(r => {
+      const d = new Date(r.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' });
+      const conso = r.fuel_consumed != null ? Number(r.fuel_consumed).toFixed(0) : '—';
+      return `<div class="history-row">
+        <div>
+          <div style="font-weight:500;">${d}${r.reg ? ' · ' + r.reg : ''}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${r.meteo || ''}</div>
+        </div>
+        <div style="text-align:right;">
+          <div>${r.rotations} rot · ${r.pax_total} pax · ${conso} L</div>
+          <div style="font-size:11px;color:var(--text-muted);">${r.flight_time || ''} de vol</div>
+        </div>
+        <button class="btn" style="padding:2px 8px;font-size:11px;flex-shrink:0;" onclick="deleteReport('${r.id}')">✕</button>
+      </div>`;
+    }).join('');
+  }
+  $('hist-days').textContent = list.length;
+  $('hist-rots').textContent = list.reduce((a, r) => a + (r.rotations || 0), 0);
+  $('hist-pax').textContent = list.reduce((a, r) => a + (r.pax_total || 0), 0);
+  const totalFuel = list.reduce((a, r) => a + (parseFloat(r.fuel_consumed) || 0), 0);
+  $('hist-fuel').textContent = totalFuel.toFixed(0) + ' L';
+}
+
+async function deleteReport(id) {
+  if (!confirm('Supprimer ce rapport ?')) return;
+  await db.from('reports').delete().eq('id', id);
+  loadHistory();
+}
+
+async function clearHistory() {
+  if (!confirm('Effacer tous les rapports ?')) return;
+  await db.from('reports').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  loadHistory();
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+async function init() {
+  // Test connexion Supabase
+  const { error } = await db.from('flights').select('id').limit(1);
+  $('loading').style.display = 'none';
+  $('app').style.display = 'block';
+  if (error) {
+    toast('⚠ Configurez SUPABASE_URL et SUPABASE_ANON_KEY dans le code');
+  }
+  loadFlights();
+  calcDrop();
+}
+
+init();
+</script>
+</body>
+</html>
